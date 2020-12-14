@@ -2,7 +2,9 @@
 import "bootstrap";
 import "bootstrap/dist/css/bootstrap.css"
 
+import {VariableLexer, VariableParser} from "./parser/Variables";
 
+const var_parser = new VariableParser();
 
 window.onload = () => {
 
@@ -14,7 +16,7 @@ window.onload = () => {
     check_btn.addEventListener('click', (_: Event) => {
         var variablesContent = variables.value;
         var conditionContent = condition.value;
-        
+
         if (variablesContent === "") {
             variables.classList.add('invalid-input');
         }
@@ -32,11 +34,20 @@ window.onload = () => {
                 condition.classList.remove('invalid-input')
             }
         }
-        
-        console.log(variables.value);
-        console.log(condition.value);
 
-        
+
+
+        const var_lexResult = VariableLexer.tokenize(variablesContent);
+        var_parser.input = var_lexResult.tokens;
+        var_parser.variableStatement();
+
+
+        if (var_parser.errors.length < 0) {
+            console.log("error while parsing variables.");
+
+        }
+
+
     });
 };
 
