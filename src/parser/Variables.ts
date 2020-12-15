@@ -1,8 +1,8 @@
-import {createToken, Lexer, CstParser}  from "chevrotain"
+import { createToken, Lexer, EmbeddedActionsParser } from "chevrotain"
 
 const identifier  = createToken({name: "identifier", pattern: /[a-zA-Z]\w*/});
-const integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*/ })
-const string = createToken({name: "String", pattern: /\".*\"/})
+const integer = createToken({ name: "Integer", pattern: /0|[1-9]\d*/ });
+const string = createToken({name: "String", pattern: /\".*\"/});
 
 const int_token = createToken({
     name: "int", pattern: /int/,
@@ -34,6 +34,11 @@ const equal_token = createToken({
     longer_alt: identifier
 });
 
+const semicolon_token = createToken({
+    name: "semicolon", pattern: /;/,
+    longer_alt: identifier
+})
+
 const whitespace = createToken({
     name: "WhiteSpace",
     pattern: /\s+/,
@@ -52,12 +57,14 @@ const all_tokens = [
     true_token,
     false_token,
     string,
+    equal_token,
+    semicolon_token,
     identifier,
 ];
 
 export const VariableLexer = new Lexer(all_tokens);
 
-export class VariableParser extends CstParser {
+export class VariableParser extends EmbeddedActionsParser {
 
     constructor() {
 
@@ -65,31 +72,84 @@ export class VariableParser extends CstParser {
 
         const that = this;
 
+        this.RULE("variableDocument", () => {
+            let table: Array<Object> = [];
+            that.MANY(() => {
+                table.push(that.SUBRULE(that.variableStatement));
+            });
+
+            return table;
+        });
+
         this.RULE("variableStatement", () => {
-            that.SUBRULE(that.typeIdentifier);
-            that.CONSUME(identifier);
-            that.SUBRULE(that.valueIdentifier);
+            const type = that.SUBRULE(that.typeIdentifier);
+            const name = that.CONSUME(identifier);
+            that.CONSUME(equal_token);
+            const value = that.SUBRULE(that.valueIdentifier);
+            that.CONSUME(semicolon_token);
+
+            return {
+                type: type,
+                name: name.image,
+                value: value,
+            };
         });
 
         this.RULE("typeIdentifier", () => {
+            let type;
             that.OR([
-                {ALT: () => that.CONSUME(string_token)},
-                {ALT: () => that.CONSUME(int_token)},
-                {ALT: () => that.CONSUME(bool_token)},
-            ])
+                    {
+                    ALT: () => {
+                        that.CONSUME(string_token);
+                        type = String; //token.image;
+                    }
+                },
+                {
+                    ALT: () => {
+                        that.CONSUME(int_token);
+                        type = integer; //token.image;
+                    }
+                },
+                {
+                    ALT: () => {
+                        that.CONSUME(bool_token);
+                        type = Boolean; //token.image;
+                    }
+                },
+            ]);
+            return type;
         });
 
         this.RULE("valueIdentifier", () => {
+            let value;
             that.OR([
-                {ALT: () => that.CONSUME(integer)},
-                {ALT: () => that.CONSUME(true_token)},
-                {ALT: () => that.CONSUME(false_token)},
-                {ALT: () => that.CONSUME(string)}
+                {
+                    ALT: () => {
+                        const token = that.CONSUME(integer);
+                        value = parseInt(token.image);
+                    }
+                },
+                {
+                    ALT: () => {
+                        that.CONSUME(true_token);
+                        value = true;
+                    }
+                },
+                {
+                    ALT: () => {
+                        that.CONSUME(false_token);
+                        value = false;
+                    }
+                },
+                {
+                    ALT: () => {
+                        const token = that.CONSUME(string)
+                        value = token.image;
+                    }
+                }
             ]);
-        })
-
-
-
+            return value;
+        });
 
         this.performSelfAnalysis();
     }

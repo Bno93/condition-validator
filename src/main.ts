@@ -39,13 +39,14 @@ window.onload = () => {
 
         const var_lexResult = VariableLexer.tokenize(variablesContent);
         var_parser.input = var_lexResult.tokens;
-        var_parser.variableStatement();
+        const var_table = var_parser.variableDocument();
 
 
         if (var_parser.errors.length < 0) {
             console.log("error while parsing variables.");
-
         }
+
+        console.log(var_table);
 
 
     });
